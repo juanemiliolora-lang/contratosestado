@@ -1,0 +1,22 @@
+# Caché de datos (se regenera automáticamente en Render)
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Word archivos temporales
+~$*
+*.tmp
+
+# Editor
+.vscode/
+*.swp

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard SEACE — Bienes &lt;8 UIT Lima</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --brand: #1a3c6e; --accent: #e8282b; --green: #16a34a;
+      --yellow: #ca8a04; --bg: #f4f6fb; --card: #fff;
+      --border: #dde3ef; --text: #1e293b; --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    header {
+      background: var(--brand); color: white;
+      padding: 14px 24px; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 17px; font-weight: 700; }
+    header p  { font-size: 12px; opacity: .75; margin-top: 2px; }
+    .badge {
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+      border-radius: 20px; padding: 4px 12px; font-size: 12px; white-space: nowrap;
+    }
+    #sync-info { font-size: 11px; opacity: .7; text-align: right; }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    /* BANNER estado scrape */
+    #scrape-banner {
+      display: none; padding: 10px 16px; border-radius: 8px;
+      margin-bottom: 16px; font-size: 13px; font-weight: 500;
+    }
+    #scrape-banner.running  { background: #dbeafe; color: #1d4ed8; }
+    #scrape-banner.error    { background: #fee2e2; color: #dc2626; }
+
+    /* STATS */
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .stat-card .val { font-size: 26px; font-weight: 700; color: var(--brand); }
+    .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* FILTROS */
+    .filters { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    .filters h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--brand); }
+    .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+    .filter-group label { font-size: 11px; color: var(--muted); font-weight: 500; }
+    select, input[type=text] {
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 10px; font-size: 13px; background: white; color: var(--text);
+    }
+
+    .ciiu-section { margin-top: 12px; }
+    .ciiu-section > label { font-size: 11px; color: var(--muted); font-weight: 500; display: block; margin-bottom: 6px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      border: 1px solid var(--border); border-radius: 20px;
+      padding: 4px 12px; font-size: 12px; cursor: pointer;
+      background: white; transition: all .15s; user-select: none;
+    }
+    .chip:hover { border-color: var(--brand); color: var(--brand); }
+    .chip.active { background: var(--brand); color: white; border-color: var(--brand); }
+
+    .btn {
+      padding: 8px 18px; border-radius: 6px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn-primary   { background: var(--brand); color: white; }
+    .btn-secondary { background: #e2e8f0; color: var(--text); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-orange { background: #ea580c; color: white; }
+
+    /* TABLA */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .table-header {
+      padding: 14px 16px; display: flex; justify-content: space-between;
+      align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px;
+    }
+    .table-header h3 { font-size: 14px; font-weight: 600; }
+    .table-actions { display: flex; gap: 8px; align-items: center; }
+    #action-msg { font-size: 12px; color: var(--green); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: #f8fafc; }
+    th {
+      text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    td { padding: 11px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    .entidad { font-weight: 500; color: var(--brand); }
+    .nro     { font-size: 11px; color: var(--muted); }
+    .desc    { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; max-width: 340px; }
+
+    .pill { display: inline-block; padding: 2px 7px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; margin: 1px; }
+    .pill-green  { background: #dcfce7; color: var(--green); }
+    .pill-blue   { background: #dbeafe; color: #1d4ed8; }
+    .pill-orange { background: #ffedd5; color: #c2410c; }
+
+    .deadline { font-size: 12px; }
+    .urgente  { color: var(--accent); font-weight: 600; }
+    .pronto   { color: var(--yellow); font-weight: 600; }
+
+    .state-box { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .state-box .icon { font-size: 40px; margin-bottom: 12px; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid #e2e8f0;
+      border-top-color: var(--brand); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* PAGINACIÓN */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px;
+    }
+    #pag-info { font-size: 12px; color: var(--muted); }
+    .page-btns { display: flex; gap: 4px; }
+    .page-btn {
+      border: 1px solid var(--border); background: white;
+      border-radius: 5px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+    }
+    .page-btn.active  { background: var(--brand); color: white; border-color: var(--brand); }
+    .page-btn:disabled { opacity: .4; cursor: default; }
+
+    /* MODAL */
+    .modal-bg {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 100; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-bg.open { display: flex; }
+    .modal { background: white; border-radius: 12px; max-width: 640px; width: 100%; max-height: 80vh; overflow-y: auto; }
+    .modal-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+    .modal-head h3 { font-size: 15px; font-weight: 600; line-height: 1.3; }
+    .modal-body { padding: 20px; }
+    .modal-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .modal-row .lbl { font-size: 12px; color: var(--muted); min-width: 130px; font-weight: 500; }
+    .modal-row .val { font-size: 13px; }
+    .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏛 Dashboard SEACE — Contrataciones &lt;8 UIT</h1>
+    <p>Bienes · Vigentes · Lima · Filtrado por CIIUs de tu empresa</p>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <span class="badge">📍 Lima</span>
+    <span class="badge">🛒 Bienes</span>
+    <span class="badge">✅ Vigentes</span>
+    <div id="sync-info">
+      <div id="last-update">Cargando datos...</div>
+      <div id="next-update"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div id="scrape-banner"></div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="val" id="stat-total">—</div><div class="lbl">Oportunidades para tu empresa</div></div>
+    <div class="stat-card"><div class="val" id="stat-raw">—</div><div class="lbl">Total Bienes Lima en SEACE</div></div>
+    <div class="stat-card"><div class="val" id="stat-urgentes">—</div><div class="lbl">Cierran en &lt;24h</div></div>
+    <div class="stat-card"><div class="val" id="stat-hoy">—</div><div class="lbl">Publicadas hoy</div></div>
+    <div class="stat-card"><div class="val" id="stat-vista">—</div><div class="lbl">Mostrando ahora</div></div>
+  </div>
+
+  <div class="filters">
+    <h3>⚙️ Filtros (sobre los datos en caché)</h3>
+    <div class="filter-row">
+      <div class="filter-group" style="flex:1;min-width:200px;">
+        <label>Buscar en descripción / entidad</label>
+        <input type="text" id="f-keyword" placeholder="Ej: laptop, cemento, MINSA..."/>
+      </div>
+      <div class="filter-group">
+        <label>Urgencia</label>
+        <select id="f-urgencia">
+          <option value="">Todas</option>
+          <option value="24">Cierran en &lt;24h</option>
+          <option value="48">Cierran en &lt;48h</option>
+          <option value="168">Esta semana</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Resultados/página</label>
+        <select id="f-pagesize">
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="resetFiltros()">↺ Reset</button>
+    </div>
+
+    <div class="ciiu-section">
+      <label>Filtrar por CIIU (muestra solo los que coinciden con ese rubro):</label>
+      <div class="chips" id="ciiu-chips">
+        <div class="chip" data-ciiu="4659" onclick="toggleCIIU(this)">4659 — Maquinaria</div>
+        <div class="chip" data-ciiu="4651" onclick="toggleCIIU(this)">4651 — Informática</div>
+        <div class="chip" data-ciiu="4641" onclick="toggleCIIU(this)">4641 — Textiles</div>
+        <div class="chip" data-ciiu="4631" onclick="toggleCIIU(this)">4631 — Frutas/Verduras</div>
+        <div class="chip" data-ciiu="4663" onclick="toggleCIIU(this)">4663 — Ferretería</div>
+        <div class="chip" data-ciiu="4661" onclick="toggleCIIU(this)">4661 — Combustibles</div>
+        <div class="chip" data-ciiu="4645" onclick="toggleCIIU(this)">4645 — Farmacéutico</div>
+        <div class="chip" data-ciiu="4649" onclick="toggleCIIU(this)">4649 — Enseres/Oficina</div>
+        <div class="chip" data-ciiu="3100" onclick="toggleCIIU(this)">3100 — Muebles madera</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>📋 Oportunidades para tu empresa</h3>
+      <div class="table-actions">
+        <span id="action-msg"></span>
+        <button class="btn btn-secondary btn-sm" onclick="exportarCSV()">⬇ CSV</button>
+        <button class="btn btn-orange btn-sm" id="btn-refresh" onclick="forzarActualizacion()">🔄 Actualizar ahora</button>
+      </div>
+    </div>
+    <div id="table-body">
+      <div class="state-box"><div class="spinner"></div><p>Cargando datos del servidor...</p></div>
+    </div>
+    <div class="pagination" id="pagination" style="display:none;">
+      <div id="pag-info"></div>
+      <div class="page-btns" id="page-btns"></div>
+    </div>
+  </div>
+
+</main>
+
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title"></h3>
+      <button class="close-btn" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ─── ESTADO GLOBAL ────────────────────────────────────────────────────────────
+let CACHE_COMPLETO = [];     // todos los items del servidor
+let CACHE_META     = {};
+let FILTRADOS      = [];     // después de aplicar filtros
+let PAGE           = 1;
+let ciiuActivos    = new Set();
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatos();
+  verificarStatusScrape();
+  setInterval(verificarStatusScrape, 15000);   // revisa estado cada 15s
+
+  document.getElementById('f-keyword').addEventListener('input', () => aplicarFiltros());
+  document.getElementById('f-urgencia').addEventListener('change', () => aplicarFiltros());
+  document.getElementById('f-pagesize').addEventListener('change', () => { PAGE = 1; renderTabla(); });
+});
+
+// ─── CARGA DE DATOS DEL SERVIDOR ─────────────────────────────────────────────
+async function cargarDatos() {
+  try {
+    const resp = await fetch('/data');
+    if (!resp.ok) throw new Error(resp.statusText);
+    const json = await resp.json();
+
+    CACHE_COMPLETO = json.items || [];
+    CACHE_META     = json;
+    actualizarMetaUI(json);
+    aplicarFiltros();
+  } catch (e) {
+    document.getElementById('table-body').innerHTML = `
+      <div class="state-box">
+        <div class="icon">⏳</div>
+        <p>El servidor está extrayendo datos de SEACE por primera vez.</p>
+        <p style="margin-top:8px;font-size:12px;">Esto puede tomar 1-2 minutos. La página se actualizará automáticamente.</p>
+      </div>`;
+    setTimeout(cargarDatos, 8000);
+  }
+}
+
+function actualizarMetaUI(meta) {
+  const hoy   = new Date().toLocaleDateString('es-PE');
+  const upAt  = meta.updated_at ? new Date(meta.updated_at) : null;
+  document.getElementById('last-update').textContent =
+    'Actualizado: ' + (upAt ? upAt.toLocaleString('es-PE') : '—');
+
+  const proxima = proximaActualizacion();
+  document.getElementById('next-update').textContent = 'Próxima: ' + proxima;
+
+  // Stats globales (sobre todos los items)
+  const urgentes = CACHE_COMPLETO.filter(d => horasRestantes(d.fecFinCotizacion) < 24).length;
+  const hoyItems = CACHE_COMPLETO.filter(d => (d.fecPublica || '').startsWith(toDateStr(new Date()))).length;
+
+  document.getElementById('stat-raw').textContent     = (meta.total_raw || 0).toLocaleString();
+  document.getElementById('stat-urgentes').textContent = urgentes;
+  document.getElementById('stat-hoy').textContent      = hoyItems;
+}
+
+// ─── FILTROS ──────────────────────────────────────────────────────────────────
+function toggleCIIU(chip) {
+  const c = chip.dataset.ciiu;
+  ciiuActivos.has(c) ? ciiuActivos.delete(c) : ciiuActivos.add(c);
+  chip.classList.toggle('active');
+  PAGE = 1;
+  aplicarFiltros();
+}
+
+function aplicarFiltros() {
+  const kw      = document.getElementById('f-keyword').value.trim().toLowerCase();
+  const urgHrs  = parseInt(document.getElementById('f-urgencia').value) || 0;
+
+  FILTRADOS = CACHE_COMPLETO.filter(item => {
+    // Filtro CIIU
+    if (ciiuActivos.size > 0) {
+      const match = (item.ciiuMatch || []).some(c => ciiuActivos.has(c));
+      if (!match) return false;
+    }
+    // Filtro keyword libre
+    if (kw) {
+      const haystack = ((item.desObjetoContrato || '') + ' ' + (item.nomEntidad || '')).toLowerCase();
+      if (!haystack.includes(kw)) return false;
+    }
+    // Filtro urgencia
+    if (urgHrs > 0) {
+      const h = horasRestantes(item.fecFinCotizacion);
+      if (h < 0 || h > urgHrs) return false;
+    }
+    return true;
+  });
+
+  // Ordenar: más urgentes primero
+  FILTRADOS.sort((a, b) => horasRestantes(a.fecFinCotizacion) - horasRestantes(b.fecFinCotizacion));
+
+  document.getElementById('stat-total').textContent = FILTRADOS.length.toLocaleString();
+  PAGE = 1;
+  renderTabla();
+}
+
+function resetFiltros() {
+  document.getElementById('f-keyword').value   = '';
+  document.getElementById('f-urgencia').value  = '';
+  document.getElementById('f-pagesize').value  = '20';
+  ciiuActivos.clear();
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  PAGE = 1;
+  aplicarFiltros();
+}
+
+// ─── RENDER TABLA ─────────────────────────────────────────────────────────────
+function renderTabla() {
+  const ps     = parseInt(document.getElementById('f-pagesize').value) || 20;
+  const total  = FILTRADOS.length;
+  const start  = (PAGE - 1) * ps;
+  const pagina = FILTRADOS.slice(start, start + ps);
+
+  document.getElementById('stat-vista').textContent = pagina.length;
+
+  if (pagina.length === 0) {
+    document.getElementById('table-body').innerHTML =
+      '<div class="state-box"><div class="icon">🔍</div><p>Sin resultados con los filtros actuales.</p></div>';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  const rows = pagina.map(d => {
+    const horas    = horasRestantes(d.fecFinCotizacion);
+    const deadCls  = horas < 24 ? 'urgente' : horas < 48 ? 'pronto' : '';
+    const deadLbl  = horas < 24 ? `⚠ ${Math.round(horas)}h` : horas < 48 ? `${Math.round(horas)}h` : formatFecha(d.fecFinCotizacion);
+    const ciius    = (d.ciiuMatch || []).map(c => `<span class="pill pill-blue">${c}</span>`).join('');
+    const kwPills  = (d.keywordMatch || []).slice(0,3).map(k => `<span class="pill pill-orange">${esc(k)}</span>`).join('');
+
+    return `<tr onclick="verDetalle(${d.idContrato})" style="cursor:pointer;">
+      <td>
+        <div class="entidad">${esc(d.nomEntidad)}</div>
+        <div class="nro">${esc(d.desContratacion)}</div>
+      </td>
+      <td>
+        <div>${esc((d.desObjetoContrato || '').substring(0,100))}${(d.desObjetoContrato||'').length>100?'…':''}</div>
+        <div style="margin-top:4px;">${kwPills}</div>
+      </td>
+      <td>${ciius}</td>
+      <td style="font-size:12px;">${formatFecha(d.fecPublica)}</td>
+      <td><div class="deadline ${deadCls}">${deadLbl}</div></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('table-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Entidad / Contrato</th>
+        <th>Descripción / Keywords</th>
+        <th>CIIU</th>
+        <th>Publicación</th>
+        <th>Cierre cotización</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  renderPaginacion(total, ps);
+}
+
+function renderPaginacion(total, ps) {
+  const totalPages = Math.ceil(total / ps);
+  const pag = document.getElementById('pagination');
+  pag.style.display = 'flex';
+  document.getElementById('pag-info').textContent =
+    `${total.toLocaleString()} resultados — página ${PAGE}/${totalPages}`;
+
+  const btns = document.getElementById('page-btns');
+  let html = `<button class="page-btn" onclick="irPagina(${PAGE-1})" ${PAGE<=1?'disabled':''}>‹</button>`;
+  pagesRange(PAGE, totalPages).forEach(p => {
+    html += p === '…'
+      ? `<button class="page-btn" disabled>…</button>`
+      : `<button class="page-btn ${p===PAGE?'active':''}" onclick="irPagina(${p})">${p}</button>`;
+  });
+  html += `<button class="page-btn" onclick="irPagina(${PAGE+1})" ${PAGE>=totalPages?'disabled':''}>›</button>`;
+  btns.innerHTML = html;
+}
+
+function irPagina(p) {
+  PAGE = p;
+  renderTabla();
+  window.scrollTo(0, 0);
+}
+
+function pagesRange(cur, tot) {
+  if (tot <= 7) return Array.from({length: tot}, (_, i) => i+1);
+  const r = [1];
+  if (cur > 3) r.push('…');
+  for (let p = Math.max(2, cur-1); p <= Math.min(tot-1, cur+1); p++) r.push(p);
+  if (cur < tot-2) r.push('…');
+  r.push(tot);
+  return r;
+}
+
+// ─── DETALLE MODAL ────────────────────────────────────────────────────────────
+function verDetalle(id) {
+  const item = CACHE_COMPLETO.find(d => d.idContrato === id);
+  if (!item) return;
+  const ciuPills = (item.ciiuMatch||[]).map(c=>`<span class="pill pill-blue">${c}</span>`).join(' ');
+  const kwPills  = (item.keywordMatch||[]).map(k=>`<span class="pill pill-orange">${esc(k)}</span>`).join(' ');
+
+  document.getElementById('modal-title').textContent = item.desContratacion;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-row"><span class="lbl">Entidad</span><span class="val"><b>${esc(item.nomEntidad)}</b></span></div>
+    <div class="modal-row"><span class="lbl">N° Contrato</span><span class="val">${esc(item.desContratacion)}</span></div>
+    <div class="modal-row"><span class="lbl">CIIUs match</span><span class="val">${ciuPills}</span></div>
+    <div class="modal-row"><span class="lbl">Keywords</span><span class="val">${kwPills}</span></div>
+    <div class="modal-row"><span class="lbl">Descripción</span><span class="val">${esc(item.desObjetoContrato||'—')}</span></div>
+    <div class="modal-row"><span class="lbl">Publicación</span><span class="val">${esc(item.fecPublica)}</span></div>
+    <div class="modal-row"><span class="lbl">Inicio cotización</span><span class="val">${esc(item.fecIniCotizacion)}</span></div>
+    <div class="modal-row"><span class="lbl">Cierre cotización</span><span class="val"><b>${esc(item.fecFinCotizacion)}</b></span></div>
+    <div style="margin-top:16px;">
+      <a href="https://prod6.seace.gob.pe/buscador-publico/contrataciones" target="_blank" class="btn btn-primary">Abrir SEACE →</a>
+    </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+}
+function cerrarModal() { document.getElementById('modal-bg').classList.remove('open'); }
+
+// ─── ACTUALIZACIÓN FORZADA ────────────────────────────────────────────────────
+async function forzarActualizacion() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '⏳ Actualizando...';
+  mostrarBanner('running', '🔄 Extrayendo datos de SEACE... esto tarda ~1 minuto.');
+
+  try {
+    await fetch('/refresh', { method: 'POST' });
+    // Esperar a que termine y recargar datos
+    esperarFinScrape();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '🔄 Actualizar ahora';
+    mostrarBanner('error', 'Error al conectar con el servidor.');
+  }
+}
+
+async function esperarFinScrape() {
+  const max = 40; // 40 * 5s = 200s máximo
+  for (let i = 0; i < max; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    try {
+      const s = await fetch('/status').then(r => r.json());
+      if (!s.running) {
+        ocultarBanner();
+        document.getElementById('btn-refresh').disabled = false;
+        document.getElementById('btn-refresh').textContent = '🔄 Actualizar ahora';
+        await cargarDatos();
+        mostrarMensaje('✅ Datos actualizados');
+        return;
+      }
+    } catch {}
+  }
+  ocultarBanner();
+  document.getElementById('btn-refresh').disabled = false;
+  document.getElementById('btn-refresh').textContent = '🔄 Actualizar ahora';
+}
+
+async function verificarStatusScrape() {
+  try {
+    const s = await fetch('/status').then(r => r.json());
+    if (s.running) {
+      mostrarBanner('running', '🔄 Actualizando datos de SEACE en segundo plano...');
+    } else if (s.error) {
+      mostrarBanner('error', '⚠ Error en última actualización: ' + s.error);
+    } else {
+      ocultarBanner();
+    }
+  } catch {}
+}
+
+function mostrarBanner(tipo, texto) {
+  const b = document.getElementById('scrape-banner');
+  b.className = 'scrape-banner ' + tipo;
+  b.textContent = texto;
+  b.style.display = 'block';
+}
+function ocultarBanner() {
+  document.getElementById('scrape-banner').style.display = 'none';
+}
+
+// ─── EXPORT CSV ───────────────────────────────────────────────────────────────
+function exportarCSV() {
+  const cols   = ['idContrato','desContratacion','nomEntidad','desObjetoContrato','fecPublica','fecIniCotizacion','fecFinCotizacion','ciiuMatch','keywordMatch'];
+  const heads  = ['ID','N° Contrato','Entidad','Descripción','Publicación','Ini Cotización','Fin Cotización','CIIUs','Keywords'];
+  const rows   = FILTRADOS.map(d =>
+    cols.map(c => {
+      const v = Array.isArray(d[c]) ? d[c].join('|') : (d[c] || '');
+      return `"${String(v).replace(/"/g,'""')}"`;
+    }).join(',')
+  );
+  const csv  = [heads.join(','), ...rows].join('\n');
+  const blob = new Blob(['﻿' + csv], {type: 'text/csv;charset=utf-8'});
+  const a    = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `seace_ciiu_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  mostrarMensaje('✅ CSV descargado');
+}
+
+function mostrarMensaje(txt) {
+  const el = document.getElementById('action-msg');
+  el.textContent = txt;
+  setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function horasRestantes(s) {
+  if (!s) return 9999;
+  const m = s.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+  if (!m) return 9999;
+  return (new Date(m[3], m[2]-1, m[1], m[4], m[5]) - Date.now()) / 3600000;
+}
+function formatFecha(s) {
+  if (!s) return '—';
+  const m = s.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+  return m ? `${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}` : s;
+}
+function toDateStr(d) {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function proximaActualizacion() {
+  const ahora   = new Date();
+  const limaNow = new Date(ahora.toLocaleString('en-US', {timeZone:'America/Lima'}));
+  const h       = limaNow.getHours();
+  const prox    = h < 8 ? 8 : h < 14 ? 14 : 8;
+  const dia     = prox < h ? 'mañana ' : '';
+  return `${dia}${prox}:00am Lima`;
+}
+</script>
+</body>
+</html>
