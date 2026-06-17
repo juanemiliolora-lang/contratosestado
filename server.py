@@ -247,7 +247,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     body = f.read()
                 self._send(200, "application/json", body)
             else:
-                self._send(404, "application/json", b'{"error":"Sin datos. Espera la primera ejecución del scrape."}')
+                self._send(404, "application/json", b'{"error":"Sin datos. Espera la primera ejecucion del scrape."}')
             return
 
         # /status → estado del scrape
