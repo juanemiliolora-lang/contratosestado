@@ -306,7 +306,7 @@ function actualizarMetaUI(meta) {
   document.getElementById('next-update').textContent = 'Próxima: ' + proxima;
 
   // Stats globales (sobre todos los items)
-  const urgentes = CACHE_COMPLETO.filter(d => horasRestantes(d.fecFinCotizacion) < 24).length;
+  const urgentes = CACHE_COMPLETO.filter(d => { const h = horasRestantes(d.fecFinCotizacion); return h >= 0 && h < 24; }).length;
   const hoyItems = CACHE_COMPLETO.filter(d => (d.fecPublica || '').startsWith(toDateStr(new Date()))).length;
 
   document.getElementById('stat-raw').textContent     = (meta.total_raw || 0).toLocaleString();
@@ -328,6 +328,9 @@ function aplicarFiltros() {
   const urgHrs  = parseInt(document.getElementById('f-urgencia').value) || 0;
 
   FILTRADOS = CACHE_COMPLETO.filter(item => {
+    // Solo 2026
+    const m = (item.fecPublica || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (!m || m[3] !== '2026') return false;
     // Filtro CIIU
     if (ciiuActivos.size > 0) {
       const match = (item.ciiuMatch || []).some(c => ciiuActivos.has(c));
@@ -346,8 +349,8 @@ function aplicarFiltros() {
     return true;
   });
 
-  // Ordenar: más urgentes primero
-  FILTRADOS.sort((a, b) => horasRestantes(a.fecFinCotizacion) - horasRestantes(b.fecFinCotizacion));
+  // Ordenar: más reciente primero (por fecPublica desc)
+  FILTRADOS.sort((a, b) => parseFecha(b.fecPublica) - parseFecha(a.fecPublica));
 
   document.getElementById('stat-total').textContent = FILTRADOS.length.toLocaleString();
   PAGE = 1;
@@ -382,8 +385,7 @@ function renderTabla() {
 
   const rows = pagina.map(d => {
     const horas    = horasRestantes(d.fecFinCotizacion);
-    const deadCls  = horas < 24 ? 'urgente' : horas < 48 ? 'pronto' : '';
-    const deadLbl  = horas < 24 ? `⚠ ${Math.round(horas)}h` : horas < 48 ? `${Math.round(horas)}h` : formatFecha(d.fecFinCotizacion);
+    const { cls: deadCls, lbl: deadLbl } = formatTiempo(horas);
     const ciius    = (d.ciiuMatch || []).map(c => `<span class="pill pill-blue">${c}</span>`).join('');
     const kwPills  = (d.keywordMatch || []).slice(0,3).map(k => `<span class="pill pill-orange">${esc(k)}</span>`).join('');
 
@@ -572,6 +574,21 @@ function horasRestantes(s) {
   const m = s.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
   if (!m) return 9999;
   return (new Date(m[3], m[2]-1, m[1], m[4], m[5]) - Date.now()) / 3600000;
+}
+function parseFecha(s) {
+  if (!s) return 0;
+  const m = s.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+  return m ? new Date(m[3], m[2]-1, m[1], m[4], m[5]).getTime() : 0;
+}
+function formatTiempo(horas) {
+  if (horas <= 0)   return { cls: '',        lbl: 'Vencido' };
+  const d = Math.floor(horas / 24);
+  const h = Math.floor(horas % 24);
+  const min = Math.floor((horas * 60) % 60);
+  if (horas < 1)    return { cls: 'urgente', lbl: `⚠ ${min}m` };
+  if (horas < 24)   return { cls: 'urgente', lbl: `⚠ ${h}h ${min}m` };
+  if (horas < 48)   return { cls: 'pronto',  lbl: `${d}d ${h}h ${min}m` };
+  return               { cls: '',        lbl: `${d}d ${h}h` };
 }
 function formatFecha(s) {
   if (!s) return '—';
